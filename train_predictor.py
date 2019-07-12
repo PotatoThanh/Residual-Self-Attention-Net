@@ -6,6 +6,7 @@ from keras.layers import AveragePooling2D, Input, Flatten, MaxPool2D, Reshape, A
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.callbacks import ReduceLROnPlateau
+from keras.preprocessing.image import ImageDataGenerator
 from keras.regularizers import l2
 from keras import backend as K
 from keras.models import Model
@@ -16,7 +17,7 @@ import os
 # Training parameters
 batch_size = 32  # orig paper trained all networks with batch_size=128
 epochs = 200
-data_augmentation = True
+data_augmentation = False
 num_classes = 10
 
 # Subtracting pixel mean improves accuracy
@@ -79,10 +80,13 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 
 def lr_schedule(epoch):
     """Learning Rate Schedule
+
     Learning rate is scheduled to be reduced after 80, 120, 160, 180 epochs.
     Called automatically every epoch as part of callbacks during training.
+
     # Arguments
         epoch (int): The number of epochs
+
     # Returns
         lr (float32): learning rate
     """
@@ -107,6 +111,7 @@ def resnet_layer(inputs,
                  batch_normalization=True,
                  conv_first=True):
     """2D Convolution-Batch Normalization-Activation stack builder
+
     # Arguments
         inputs (tensor): input tensor from input image or previous layer
         num_filters (int): Conv2D number of filters
@@ -116,6 +121,7 @@ def resnet_layer(inputs,
         batch_normalization (bool): whether to include batch normalization
         conv_first (bool): conv-bn-activation (True) or
             bn-activation-conv (False)
+
     # Returns
         x (tensor): tensor as input to the next layer
     """
@@ -141,73 +147,104 @@ def resnet_layer(inputs,
         x = conv(x)
     return x
 
-def self_attention(inputs, h_feature, name,
-                    num_filters=16,
-                    kernel_size=1,
-                    strides=1,
-                    max_pooling=False):
-    """2D Convolution-Batch Normalization-Activation for self-attention map
-    # Arguments
-        inputs (tensor): input tensor from input image or previous layer
-        h_feature (tensor): input tensor from feature map
-        name (str): indicate name to value of attention easier
-        num_filters (int): Conv2D number of filters output
-        kernel_size (int): Conv2D square kernel dimensions
-        strides (int): Conv2D square stride dimensions
-        max_pooling (bool): if True, apply max pooling 2D for inputs, f, g
-    # Returns
-        x (tensor): tensor as attention map
-    """
-    convf = Conv2D(num_filters,
-                  kernel_size=kernel_size,
-                  strides=strides,
-                  padding='same',
-                  kernel_initializer='he_normal',
-                  kernel_regularizer=l2(1e-4))
-                  
-    convg = Conv2D(num_filters,
-                  kernel_size=kernel_size,
-                  strides=strides,
-                  padding='same',
-                  kernel_initializer='he_normal',
-                  kernel_regularizer=l2(1e-4))
+class Self_Attention_Layer(Layer):
+    gamma = K.variable(0.0) # class variable
 
-    # get key, query and value
-    f = resnet_layer(inputs=inputs,
-                    num_filters=num_filters,
-                    kernel_size=1,
-                    strides=strides,
-                    activation=None,
-                    batch_normalization=False)  # [bs, h, w, c']
-    g = resnet_layer(inputs=inputs,
-                    num_filters=num_filters,
-                    kernel_size=1,
-                    strides=strides,
-                    activation=None,
-                    batch_normalization=False)  # [bs, h, w, c']
+    def __init__(self, strides, att_name, num_filters, **kwargs):
+        self.strides = strides
+        self.att_name = att_name
+        self.num_filters = num_filters
+        super(Self_Attention_Layer, self).__init__(**kwargs)
 
-    # get output shape
-    _, height, width, num_filters = K.int_shape(h_feature)
+    def build(self, input_shape):
+        # Create a trainable weight variable for this layer.
+        self.trainable_weights = [Self_Attention_Layer.gamma]
 
-    # flatten h and w
-    f = Reshape((height*width, num_filters))(f)
-    g = Reshape((height*width, num_filters))(g)
-    h = Reshape((height*width, num_filters))(h_feature)    
-    
-    # N = h * w
-    s = Lambda(lambda x: tf.matmul(x[0], x[1], transpose_b=True))([g, f])  # [bs, N, N]
+        super(Self_Attention_Layer, self).build(input_shape)  # Be sure to call this at the end
 
-    att_map = Lambda(lambda x: K.softmax(x))(s)  # attention map [0, 1]
+    def call(self, x):
+        return self.self_attention(x[0], x[1], strides = self.strides,
+                                    att_name=self.att_name, num_filters=self.num_filters)
 
-    att_feature = Lambda(lambda x: tf.matmul(x[0]+1.0, x[1]))([att_map, h]) # residual attention map = att_map + 1.0
+    def compute_output_shape(self, input_shape):
+        return input_shape[1]
 
-    att_feature = Reshape((height, width, num_filters))(att_feature)
+    def self_attention(self, x, h_feature,
+                        att_name,
+                        num_filters=16,
+                        kernel_size=3,
+                        strides=1,
+                        max_pooling=False):
+        """2D Convolution-Batch Normalization-Activation for self-attention map
+        # Arguments
+            inputs (tensor): input tensor from input image or previous layer
+            h_feature (tensor): input tensor from feature map
+            name (str): indicate name to value of attention easier
+            num_filters (int): Conv2D number of filters output
+            kernel_size (int): Conv2D square kernel dimensions
+            strides (int): Conv2D square stride dimensions
+            max_pooling (bool): if True, apply max pooling 2D for inputs, f, g
+        # Returns
+            x (tensor): tensor as attention map
+        """
+        # get key, query and value
+        f = resnet_layer(inputs=x,
+                        num_filters=num_filters,
+                        strides=strides,
+                        activation=None,
+                        batch_normalization=False)
+        f = resnet_layer(inputs=f,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        activation=None,
+                        batch_normalization=False)  # linear layer [bs, h, w, c]
 
-    return att_feature
+        g = resnet_layer(inputs=x,
+                        num_filters=num_filters,
+                        strides=strides,
+                        activation=None,
+                        batch_normalization=False)
+        g = resnet_layer(inputs=g,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        activation=None,
+                        batch_normalization=False)  # linear layer [bs, h, w, c]
 
+        # h = h_feature
+        h = resnet_layer(inputs=h_feature,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        activation=None,
+                        batch_normalization=False)  # linear layer [bs, h, w, c]
+
+        # get output shape
+        _, height, width, num_filters = K.int_shape(h)
+
+        # flatten h and w
+        f = Reshape((height*width, num_filters))(f)
+        g = Reshape((height*width, num_filters))(g)
+        h = Reshape((height*width, num_filters))(h)    
+        
+        # N = h * w
+        s = Lambda(lambda x: tf.matmul(x[0], x[1], transpose_b=True))([g, f])  # [bs, N, N]
+
+        att_map = Lambda(lambda x: K.softmax(x), name= att_name)(s)  # attention map [0, 1]
+
+        att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
+        att_feature = Lambda(lambda x: Self_Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
+        att_feature = Reshape((height, width, num_filters))(att_feature)
+
+        att_feature = resnet_layer(inputs=att_feature,
+                                    num_filters=num_filters,
+                                    kernel_size=1,
+                                    activation=None,
+                                    batch_normalization=False)  # linear layer [bs, h, w, c']
+        
+        return att_feature
 
 def resnet_v1(input_shape, depth, num_classes=10):
     """ResNet Version 1 Model builder [a]
+
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
     Last ReLU is after the shortcut connection.
     At the beginning of each stage, the feature map size is halved (downsampled)
@@ -224,10 +261,12 @@ def resnet_v1(input_shape, depth, num_classes=10):
     ResNet44 0.66M
     ResNet56 0.85M
     ResNet110 1.7M
+
     # Arguments
         input_shape (tensor): shape of input image tensor
         depth (int): number of core convolutional layers
         num_classes (int): number of classes (CIFAR10 has 10)
+
     # Returns
         model (Model): Keras model instance
     """
@@ -238,9 +277,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
     num_res_blocks = int((depth - 2) / 6)
 
     inputs = Input(shape=input_shape)
-    x = resnet_layer(inputs=inputs, kernel_size=7)
-    x = self_attention(inputs, x, name='att')
-
+    x = resnet_layer(inputs=inputs,)
     # Instantiate the stack of residual units
     for stack in range(3):
         for res_block in range(num_res_blocks):
@@ -252,20 +289,21 @@ def resnet_v1(input_shape, depth, num_classes=10):
                              strides=strides)
             y = resnet_layer(inputs=y,
                              num_filters=num_filters,
-                             activation=None)
+                             activation=None,
+                             batch_normalization=False)
+            # Self-attention
+            att_name='att'+str(stack)+str(res_block)
+            y = Self_Attention_Layer(strides, att_name, num_filters)([x, y])
+            y = BatchNormalization()(y)
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match
                 # changed dims
                 x = resnet_layer(inputs=x,
-                                 num_filters=num_filters,
-                                 kernel_size=1,
-                                 strides=strides,
-                                 activation=None,
-                                 batch_normalization=False)
-            y = self_attention(inputs=x,
-                                h_feature=y,
-                                name='att'+str(stack)+str(res_block),
-                                num_filters=num_filters)
+                                num_filters=num_filters,
+                                kernel_size=1,
+                                strides=strides,
+                                activation=None,
+                                batch_normalization=False) 
             x = keras.layers.add([x, y])
             x = Activation('relu')(x)
         num_filters *= 2
@@ -282,7 +320,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
     model = Model(inputs=inputs, outputs=outputs)
     return model
 
-# Resnet model
+
 model = resnet_v1(input_shape=input_shape, depth=depth)
 
 model.compile(loss='categorical_crossentropy',
@@ -314,13 +352,13 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
 callbacks = [checkpoint, lr_reducer, lr_scheduler]
 
 # Run training, with or without data augmentation.
+print('Not using data augmentation.')
 model.fit(x_train, y_train,
             batch_size=batch_size,
             epochs=epochs,
             validation_data=(x_test, y_test),
             shuffle=True,
             callbacks=callbacks)
-
 
 # Score trained model.
 scores = model.evaluate(x_test, y_test, verbose=1)

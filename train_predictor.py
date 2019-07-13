@@ -305,39 +305,32 @@ def resnet_v1(input_shape, depth, num_classes=10):
     num_filters = 16
     num_res_blocks = int((depth - 2) / 6)
 
-    inputs = Input(shape=input_shape, name='img')
-
-    # Self-attention
-    att_name='layer_att'
-    x = Attention_Layer(strides=1, num_filters=num_filters, name=att_name)(inputs)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-
+    inputs = Input(shape=input_shape)
+    x = resnet_layer(inputs=inputs)
     # Instantiate the stack of residual units
     for stack in range(3):
         for res_block in range(num_res_blocks):
             strides = 1
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 strides = 2  # downsample
-
-            # Self-attention
-            att_name='layer_att'+str(stack)+str(res_block)
-            y = Attention_Layer(strides, num_filters, name=att_name)(x)
-            y = BatchNormalization()(y)
-
+            y = resnet_layer(inputs=x,
+                             num_filters=num_filters,
+                             strides=strides)
+            y = resnet_layer(inputs=y,
+                             num_filters=num_filters,
+                             activation=None)
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match
                 # changed dims
                 x = resnet_layer(inputs=x,
-                                num_filters=num_filters,
-                                kernel_size=1,
-                                strides=strides,
-                                activation=None,
-                                batch_normalization=False) 
+                                 num_filters=num_filters,
+                                 kernel_size=1,
+                                 strides=strides,
+                                 activation=None,
+                                 batch_normalization=False)
             x = keras.layers.add([x, y])
             x = Activation('relu')(x)
         num_filters *= 2
-
     # Add classifier on top.
     # v1 does not use BN after last shortcut connection-ReLU
     x = AveragePooling2D(pool_size=8)(x)
@@ -380,10 +373,10 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
                                patience=5,
                                min_lr=0.5e-6)
 
-cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=5,
-                                write_graph=True, my_write='attention')
+# cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=5,
+#                                 write_graph=True, my_write='attention')
 
-callbacks = [checkpoint, lr_reducer, lr_scheduler, cb_tensorboard]
+callbacks = [checkpoint, lr_reducer, lr_scheduler]
 
 # Run training, with or without data augmentation.
 print('Not using data augmentation.')

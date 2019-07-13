@@ -143,14 +143,12 @@ def resnet_layer(inputs,
     if conv_first:
         x = conv(x)
         if batch_normalization:
-            # x = BatchNormalization()(x)
-            pass
+            x = BatchNormalization()(x)
         if activation is not None:
             x = Activation(activation)(x)
     else:
         if batch_normalization:
-            # x = BatchNormalization()(x)
-            pass
+            x = BatchNormalization()(x)
         if activation is not None:
             x = Activation(activation)(x)
         x = conv(x)
@@ -253,7 +251,7 @@ class Attention_Layer(Layer):
         # N = h * w
         s = Lambda(lambda x: tf.matmul(x[0], x[1], transpose_b=True))([g, f])  # [bs, N, N]
 
-        att_map = Activation('softmax')(s) # attention map [0, 1] 
+        att_map = Activation('softmax', name=att_name)(s) # attention map [0, 1] 
         
         att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
         att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
@@ -316,7 +314,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
             # Self-attention
             att_name='layer_att'+str(stack)+str(res_block)
             y = Attention_Layer(strides, num_filters, name=att_name)(x)
-            # y = BatchNormalization()(y)
+            y = BatchNormalization()(y)
 
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match

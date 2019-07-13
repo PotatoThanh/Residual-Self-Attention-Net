@@ -44,7 +44,7 @@ subtract_pixel_mean = False
 # ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | ---(---)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
-n = 3
+n = 5
 
 # Model version
 # Orig paper: version = 1 (ResNet v1), Improved ResNet: version = 2 (ResNet v2)
@@ -369,6 +369,7 @@ filepath = os.path.join(save_dir, model_name)
 # Prepare callbacks for model saving and for learning rate adjustment.
 checkpoint = ModelCheckpoint(filepath=filepath,
                              monitor='val_acc',
+                             period=5,
                              verbose=1,
                              save_best_only=True)
 
@@ -379,7 +380,8 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
                                patience=5,
                                min_lr=0.5e-6)
 
-cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=1, write_graph=True, my_write='attention')
+cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=5,
+                                write_graph=True, my_write='attention')
 
 callbacks = [checkpoint, lr_reducer, lr_scheduler, cb_tensorboard]
 

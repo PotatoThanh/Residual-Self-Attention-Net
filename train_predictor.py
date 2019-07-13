@@ -201,10 +201,10 @@ class Attention_Layer(Layer):
             x (tensor): tensor as attention map
         """
         # get key, query and value
+        # f = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides)
         f = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides)
-        f = resnet_layer(inputs=f,
                         num_filters=num_filters,
                         activation=None,
                         batch_normalization=False)
@@ -214,10 +214,10 @@ class Attention_Layer(Layer):
                         activation=None,
                         batch_normalization=False)  # linear layer [bs, h, w, c]
 
+        # g = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides)
         g = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides)
-        g = resnet_layer(inputs=g,
                         num_filters=num_filters,
                         activation=None,
                         batch_normalization=False)
@@ -350,7 +350,7 @@ model.compile(loss='categorical_crossentropy',
 model.summary()
 print(model_type)
 
-# Prepare model model saving directory.
+# Prepare model model saving dnirectory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
 if not os.path.isdir(save_dir):

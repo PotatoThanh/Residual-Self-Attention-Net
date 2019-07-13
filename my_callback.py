@@ -186,20 +186,12 @@ class my_TensorBoard(Callback):
                 MAX_OUT = 5
                 if self.my_write == 'attention':
                     input1 = self.model.get_layer('img').input
-                    att_layer00 = self.model.get_layer('layer_att04')
-
-                    att_feature00 = att_layer00.get_att_feature()
-
-                    att00_max = tf.reduce_max(att_feature00, axis=-1, keepdims=True)
-
                     tf.summary.image('img', input1, max_outputs=MAX_OUT)
-                    tf.summary.image('att04', att00_max, max_outputs=MAX_OUT)
 
-                    att_layer = self.model.get_layer('layer_att')
+                    att_layer = self.model.get_layer('layer_att22')
                     att_feature = att_layer.get_att_feature()
                     att_max = tf.reduce_max(att_feature, axis=-1, keepdims=True)
                     tf.summary.image('att', att_max, max_outputs=MAX_OUT)
-
 
         self.merged = tf.summary.merge_all()
 

@@ -229,10 +229,10 @@ class Attention_Layer(Layer):
                         activation=None,
                         batch_normalization=False)  # linear layer [bs, h, w, c]
 
+        # h = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides)
         h = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides)
-        h = resnet_layer(inputs=h,
                         num_filters=num_filters,
                         activation=None,
                         batch_normalization=False)

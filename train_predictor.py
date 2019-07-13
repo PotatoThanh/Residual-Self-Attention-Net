@@ -232,7 +232,7 @@ class Attention_Layer(Layer):
         # N = h * w
         s = Lambda(lambda x: tf.matmul(x[0], x[1], transpose_b=True))([g, f])  # [bs, N, N]
 
-        att_map = Lambda(lambda x: K.softmax(x), name= att_name)(s)  # attention map [0, 1]
+        att_map = Activation('softmax', name=att_name)(s) # attention map [0, 1] 
 
         att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
         att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])

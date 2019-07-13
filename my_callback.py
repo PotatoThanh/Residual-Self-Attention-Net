@@ -184,7 +184,7 @@ class my_TensorBoard(Callback):
             # #### My writer ####
             if self.my_write is not None:
                 MAX_OUT = 5
-                if self.my_write == 'attention':
+                if self.my_write == 'attention1':
                     input1 = self.model.get_layer('img').input
 
                     att00 = self.model.get_layer('att00').output

@@ -156,6 +156,7 @@ class Attention_Layer(Layer):
         self.strides = strides
         self.att_name = att_name
         self.num_filters = num_filters
+        self.att_map = None
         super(Attention_Layer, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -170,7 +171,9 @@ class Attention_Layer(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]
-
+    
+    def get_att_map(self):
+        return self.att_map
     def attention(self, x, h_feature,
                         att_name,
                         num_filters=16,
@@ -233,11 +236,12 @@ class Attention_Layer(Layer):
         s = Lambda(lambda x: tf.matmul(x[0], x[1], transpose_b=True))([g, f])  # [bs, N, N]
 
         att_map = Activation('softmax', name=att_name)(s) # attention map [0, 1] 
-
+        
         att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
         att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
         att_feature = Reshape((height, width, num_filters))(att_feature)
-
+        self.att_map = att_feature
+        
         att_feature = resnet_layer(inputs=att_feature,
                                     num_filters=num_filters,
                                     kernel_size=1,
@@ -297,7 +301,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                              batch_normalization=False)
             # Self-attention
             att_name='att'+str(stack)+str(res_block)
-            y = Attention_Layer(strides, att_name, num_filters)([x, y])
+            y = Attention_Layer(strides, att_name, num_filters, name='layer_'+att_name)([x, y])
             y = BatchNormalization()(y)
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match

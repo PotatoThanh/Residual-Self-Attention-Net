@@ -184,18 +184,21 @@ class my_TensorBoard(Callback):
             # #### My writer ####
             if self.my_write is not None:
                 MAX_OUT = 5
-                if self.my_write == 'attention1':
+                if self.my_write == 'attention':
                     input1 = self.model.get_layer('img').input
+                    att00 = self.model.get_layer('layer_att00')
+                    att00 = att00.get_att_map()
 
-                    att00 = self.model.get_layer('att00').output
                     att00_max = tf.reduce_max(att00, axis=-1, keepdims=True)
+                    # input1_max = tf.reduce_max(input1, axis=-1, keepdims=True)
+                    
                     temp1 = K.concatenate([att00_max, att00_max, att00_max], axis=-1)
                     temp = K.concatenate([input1, temp1], axis=-2)
                     tf.summary.image('img-att00', temp, max_outputs=MAX_OUT)
 
-                    att11 = self.model.get_layer('att11').output
-                    att11_max = tf.reduce_max(att11, axis=-1, keepdims=True)
-                    tf.summary.image('att11', att11_max, max_outputs=MAX_OUT)
+                    # att11 = self.model.get_layer('att11').output
+                    # att11_max = tf.reduce_max(att11, axis=-1, keepdims=True)
+                    # tf.summary.image('att11', att11_max, max_outputs=MAX_OUT)
 
         self.merged = tf.summary.merge_all()
 

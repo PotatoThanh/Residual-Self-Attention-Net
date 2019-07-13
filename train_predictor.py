@@ -171,7 +171,8 @@ class Attention_Layer(Layer):
                                     att_name=self.att_name, num_filters=self.num_filters)
 
     def compute_output_shape(self, input_shape):
-        return input_shape
+        output_shape =(None, input_shape[1]//self.strides, input_shape[2]//self.strides, self.num_filters)
+        return output_shape
     
     def get_att_map(self):
         return self.att_map

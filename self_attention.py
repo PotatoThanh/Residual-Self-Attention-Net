@@ -27,7 +27,7 @@ class Attention_Layer(Layer):
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        self.trainable_weights = [Attention_Layer.gamma]
+        self.trainable_weights.append(Attention_Layer.gamma)
 
         super(Attention_Layer, self).build(input_shape)  # Be sure to call this at the end
 

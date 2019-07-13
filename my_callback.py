@@ -192,9 +192,10 @@ class my_TensorBoard(Callback):
                     att00_max = tf.reduce_max(att00, axis=-1, keepdims=True)
                     # input1_max = tf.reduce_max(input1, axis=-1, keepdims=True)
                     
-                    temp1 = K.concatenate([att00_max, att00_max, att00_max], axis=-1)
-                    temp = K.concatenate([input1, temp1], axis=-2)
-                    tf.summary.image('img-att00', temp, max_outputs=MAX_OUT)
+                    # temp1 = K.concatenate([att00_max, att00_max, att00_max], axis=-1)
+                    # temp = K.concatenate([input1, temp1], axis=-2)
+                    tf.summary.image('img', input1, max_outputs=MAX_OUT)
+                    tf.summary.image('att00', att00_max, max_outputs=MAX_OUT)
 
                     # att11 = self.model.get_layer('att11').output
                     # att11_max = tf.reduce_max(att11, axis=-1, keepdims=True)

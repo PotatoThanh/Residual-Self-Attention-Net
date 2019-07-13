@@ -241,7 +241,7 @@ class Attention_Layer(Layer):
         att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
         att_feature = Reshape((height, width, num_filters))(att_feature)
         self.att_map = att_feature
-        
+
         att_feature = resnet_layer(inputs=att_feature,
                                     num_filters=num_filters,
                                     kernel_size=1,
@@ -357,7 +357,7 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
                                patience=5,
                                min_lr=0.5e-6)
 
-cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=5, write_graph=True, my_write='attention')
+cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=1, write_graph=True, my_write='attention')
 
 callbacks = [checkpoint, lr_reducer, lr_scheduler, cb_tensorboard]
 

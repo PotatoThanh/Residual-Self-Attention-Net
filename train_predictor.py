@@ -144,11 +144,13 @@ def resnet_layer(inputs,
         x = conv(x)
         if batch_normalization:
             # x = BatchNormalization()(x)
+            pass
         if activation is not None:
             x = Activation(activation)(x)
     else:
         if batch_normalization:
             # x = BatchNormalization()(x)
+            pass
         if activation is not None:
             x = Activation(activation)(x)
         x = conv(x)

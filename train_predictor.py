@@ -322,7 +322,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                              num_filters=num_filters,
                              activation=None,
                              batch_normalization=False)
-            y = Attention_Layer()([x, y])
+            y = Attention_Layer(strides=strides, num_filters=num_filters)([x, y])
             y = BatchNormalization()(y)
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match

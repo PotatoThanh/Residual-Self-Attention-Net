@@ -306,7 +306,13 @@ def resnet_v1(input_shape, depth, num_classes=10):
     num_res_blocks = int((depth - 2) / 6)
 
     inputs = Input(shape=input_shape, name='img')
-    x = resnet_layer(inputs=inputs,)
+
+    # Self-attention
+    att_name='layer_att'
+    x = Attention_Layer(strides=1, num_filters=num_filters, name=att_name)(inputs)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
     # Instantiate the stack of residual units
     for stack in range(3):
         for res_block in range(num_res_blocks):

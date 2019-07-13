@@ -157,6 +157,7 @@ class Attention_Layer(Layer):
         self.att_name = att_name
         self.num_filters = num_filters
         self.att_map = None
+        self.att_feature = None
         super(Attention_Layer, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -166,20 +167,24 @@ class Attention_Layer(Layer):
         super(Attention_Layer, self).build(input_shape)  # Be sure to call this at the end
 
     def call(self, x):
-        return self.attention(x[0], x[1], strides = self.strides,
+        return self.attention(x, strides = self.strides,
                                     att_name=self.att_name, num_filters=self.num_filters)
 
     def compute_output_shape(self, input_shape):
-        return input_shape[1]
+        return input_shape
     
     def get_att_map(self):
         return self.att_map
-    def attention(self, x, h_feature,
-                        att_name,
-                        num_filters=16,
-                        kernel_size=3,
-                        strides=1,
-                        max_pooling=False):
+    
+    def get_att_feature(self):
+        return self.att_feature
+
+    def attention(self, x,
+                    att_name,
+                    num_filters=16,
+                    kernel_size=3,
+                    strides=1,
+                    max_pooling=False):
         """2D Convolution-Batch Normalization-Activation for self-attention map
         # Arguments
             inputs (tensor): input tensor from input image or previous layer
@@ -193,32 +198,40 @@ class Attention_Layer(Layer):
             x (tensor): tensor as attention map
         """
         # get key, query and value
-        if strides == 2:
-            x = MaxPool2D()(x)
-        # f = resnet_layer(inputs=x,
-        #                 num_filters=num_filters,
-        #                 strides=strides,
-        #                 activation=None,
-        #                 batch_normalization=False)
         f = resnet_layer(inputs=x,
                         num_filters=num_filters,
-                        kernel_size=1,
+                        strides=strides)
+        f = resnet_layer(inputs=f,
+                        num_filters=num_filters,
                         activation=None,
-                        batch_normalization=False)  # linear layer [bs, h, w, c]
-
-        # g = resnet_layer(inputs=x,
-        #                 num_filters=num_filters,
-        #                 strides=strides,
-        #                 activation=None,
-        #                 batch_normalization=False)
-        g = resnet_layer(inputs=x,
+                        batch_normalization=False)
+        f = resnet_layer(inputs=f,
                         num_filters=num_filters,
                         kernel_size=1,
                         activation=None,
                         batch_normalization=False)  # linear layer [bs, h, w, c]
 
-        # h = h_feature
-        h = resnet_layer(inputs=h_feature,
+        g = resnet_layer(inputs=x,
+                        num_filters=num_filters,
+                        strides=strides)
+        g = resnet_layer(inputs=g,
+                        num_filters=num_filters,
+                        activation=None,
+                        batch_normalization=False)
+        g = resnet_layer(inputs=g,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        activation=None,
+                        batch_normalization=False)  # linear layer [bs, h, w, c]
+
+        h = resnet_layer(inputs=x,
+                        num_filters=num_filters,
+                        strides=strides)
+        h = resnet_layer(inputs=h,
+                        num_filters=num_filters,
+                        activation=None,
+                        batch_normalization=False)
+        h = resnet_layer(inputs=h,
                         num_filters=num_filters,
                         kernel_size=1,
                         activation=None,
@@ -240,7 +253,9 @@ class Attention_Layer(Layer):
         att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
         att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
         att_feature = Reshape((height, width, num_filters))(att_feature)
-        self.att_map = att_feature
+        
+        self.att_feature = att_feature
+        self.att_map = att_map
 
         att_feature = resnet_layer(inputs=att_feature,
                                     num_filters=num_filters,
@@ -292,17 +307,12 @@ def resnet_v1(input_shape, depth, num_classes=10):
             strides = 1
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 strides = 2  # downsample
-            y = resnet_layer(inputs=x,
-                             num_filters=num_filters,
-                             strides=strides)
-            y = resnet_layer(inputs=y,
-                             num_filters=num_filters,
-                             activation=None,
-                             batch_normalization=False)
+
             # Self-attention
             att_name='att'+str(stack)+str(res_block)
-            y = Attention_Layer(strides, att_name, num_filters, name='layer_'+att_name)([x, y])
+            y = Attention_Layer(strides, att_name, num_filters, name='layer_'+att_name)(x)
             y = BatchNormalization()(y)
+
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match
                 # changed dims

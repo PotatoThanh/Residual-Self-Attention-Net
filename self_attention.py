@@ -102,7 +102,7 @@ class Attention_Layer(Layer):
 
         att_map = Activation('softmax')(s) # attention map [0, 1] 
         
-        att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
+        att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) ] # apply attention map
         att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
         att_feature = Reshape((height, width, num_filters))(att_feature)
 
@@ -110,6 +110,6 @@ class Attention_Layer(Layer):
                                     num_filters=num_filters,
                                     kernel_size=1,
                                     activation=None,
-                                    batch_normalization=False)  # linear layer [bs, h, w, c']
+                                    batch_normalization=False)  # linear layer [bs, h, w, c]
         
         return att_feature

@@ -24,7 +24,7 @@ except:
 
 
 # Training parameters
-batch_size = 32  # orig paper trained all networks with batch_size=128
+batch_size = 128  # orig paper trained all networks with batch_size=128
 epochs = 500
 data_augmentation = True
 num_classes = 10
@@ -195,10 +195,9 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
                                patience=5,
                                min_lr=0.5e-6)
 
-# cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=5,
-#                                 write_graph=True, my_write='attention')
+tensorboard = keras.callbacks.TensorBoard(log_dir='./logs', histogram_freq=0, batch_size=batch_size, write_graph=True)
 
-callbacks = [checkpoint, lr_reducer, lr_scheduler]
+callbacks = [checkpoint, lr_reducer, lr_scheduler, tensorboard]
 
 # Run training, with or without data augmentation.
 # Run training, with or without data augmentation.

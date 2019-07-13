@@ -234,6 +234,7 @@ class Attention_Layer(Layer):
         #                 strides=strides)
         h = resnet_layer(inputs=x,
                         num_filters=num_filters,
+                        strides=strides,
                         activation=None,
                         batch_normalization=False)
         h = resnet_layer(inputs=h,

@@ -15,7 +15,11 @@ import numpy as np
 import os
 
 from my_callback import my_TensorBoard
-tf.gfile.DeleteRecursively('./logs')
+try:
+    tf.gfile.DeleteRecursively('./logs')
+except:
+    print('Logs is not found!')
+
 
 # Training parameters
 batch_size = 32  # orig paper trained all networks with batch_size=128
@@ -153,9 +157,8 @@ def resnet_layer(inputs,
 class Attention_Layer(Layer):
     gamma = K.variable(0.0) # class variable
 
-    def __init__(self, strides, att_name, num_filters, **kwargs):
+    def __init__(self, strides, num_filters, **kwargs):
         self.strides = strides
-        self.att_name = att_name
         self.num_filters = num_filters
         self.att_map = None
         self.att_feature = None
@@ -168,8 +171,7 @@ class Attention_Layer(Layer):
         super(Attention_Layer, self).build(input_shape)  # Be sure to call this at the end
 
     def call(self, x):
-        return self.attention(x, strides = self.strides,
-                                    att_name=self.att_name, num_filters=self.num_filters)
+        return self.attention(x, strides = self.strides, num_filters=self.num_filters)
 
     def compute_output_shape(self, input_shape):
         output_shape =(None, input_shape[1]//self.strides, input_shape[2]//self.strides, self.num_filters)
@@ -182,7 +184,6 @@ class Attention_Layer(Layer):
         return self.att_feature
 
     def attention(self, x,
-                    att_name,
                     num_filters=16,
                     kernel_size=3,
                     strides=1,
@@ -250,7 +251,7 @@ class Attention_Layer(Layer):
         # N = h * w
         s = Lambda(lambda x: tf.matmul(x[0], x[1], transpose_b=True))([g, f])  # [bs, N, N]
 
-        att_map = Activation('softmax', name=att_name)(s) # attention map [0, 1] 
+        att_map = Activation('softmax')(s) # attention map [0, 1] 
         
         att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
         att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
@@ -311,8 +312,8 @@ def resnet_v1(input_shape, depth, num_classes=10):
                 strides = 2  # downsample
 
             # Self-attention
-            att_name='att'+str(stack)+str(res_block)
-            y = Attention_Layer(strides, att_name, num_filters, name='layer_'+att_name)(x)
+            att_name='layer_att'+str(stack)+str(res_block)
+            y = Attention_Layer(strides, num_filters, name=att_name)(x)
             y = BatchNormalization()(y)
 
             if stack > 0 and res_block == 0:  # first layer but not first stack

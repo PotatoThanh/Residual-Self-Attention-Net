@@ -15,6 +15,7 @@ import numpy as np
 import os
 
 from my_callback import my_TensorBoard
+tf.gfile.DeleteRecursively('./logs')
 
 # Training parameters
 batch_size = 32  # orig paper trained all networks with batch_size=128

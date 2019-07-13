@@ -14,6 +14,8 @@ from keras.datasets import cifar10
 import numpy as np
 import os
 
+from my_callback import my_TensorBoard
+
 # Training parameters
 batch_size = 32  # orig paper trained all networks with batch_size=128
 epochs = 200
@@ -147,29 +149,29 @@ def resnet_layer(inputs,
         x = conv(x)
     return x
 
-class Self_Attention_Layer(Layer):
+class Attention_Layer(Layer):
     gamma = K.variable(0.0) # class variable
 
     def __init__(self, strides, att_name, num_filters, **kwargs):
         self.strides = strides
         self.att_name = att_name
         self.num_filters = num_filters
-        super(Self_Attention_Layer, self).__init__(**kwargs)
+        super(Attention_Layer, self).__init__(**kwargs)
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        self.trainable_weights = [Self_Attention_Layer.gamma]
+        self.trainable_weights = [Attention_Layer.gamma]
 
-        super(Self_Attention_Layer, self).build(input_shape)  # Be sure to call this at the end
+        super(Attention_Layer, self).build(input_shape)  # Be sure to call this at the end
 
     def call(self, x):
-        return self.self_attention(x[0], x[1], strides = self.strides,
+        return self.attention(x[0], x[1], strides = self.strides,
                                     att_name=self.att_name, num_filters=self.num_filters)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]
 
-    def self_attention(self, x, h_feature,
+    def attention(self, x, h_feature,
                         att_name,
                         num_filters=16,
                         kernel_size=3,
@@ -188,23 +190,25 @@ class Self_Attention_Layer(Layer):
             x (tensor): tensor as attention map
         """
         # get key, query and value
+        if strides == 2:
+            x = MaxPool2D()(x)
+        # f = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides,
+        #                 activation=None,
+        #                 batch_normalization=False)
         f = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides,
-                        activation=None,
-                        batch_normalization=False)
-        f = resnet_layer(inputs=f,
                         num_filters=num_filters,
                         kernel_size=1,
                         activation=None,
                         batch_normalization=False)  # linear layer [bs, h, w, c]
 
+        # g = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides,
+        #                 activation=None,
+        #                 batch_normalization=False)
         g = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides,
-                        activation=None,
-                        batch_normalization=False)
-        g = resnet_layer(inputs=g,
                         num_filters=num_filters,
                         kernel_size=1,
                         activation=None,
@@ -231,7 +235,7 @@ class Self_Attention_Layer(Layer):
         att_map = Lambda(lambda x: K.softmax(x), name= att_name)(s)  # attention map [0, 1]
 
         att_feature = Lambda(lambda x: tf.matmul(x[0], x[1]))([att_map, h]) # residual attention map = att_map + 1.0
-        att_feature = Lambda(lambda x: Self_Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
+        att_feature = Lambda(lambda x: Attention_Layer.gamma*x[0] + x[1])([att_feature, h])
         att_feature = Reshape((height, width, num_filters))(att_feature)
 
         att_feature = resnet_layer(inputs=att_feature,
@@ -276,7 +280,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
     num_filters = 16
     num_res_blocks = int((depth - 2) / 6)
 
-    inputs = Input(shape=input_shape)
+    inputs = Input(shape=input_shape, name='img')
     x = resnet_layer(inputs=inputs,)
     # Instantiate the stack of residual units
     for stack in range(3):
@@ -293,7 +297,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                              batch_normalization=False)
             # Self-attention
             att_name='att'+str(stack)+str(res_block)
-            y = Self_Attention_Layer(strides, att_name, num_filters)([x, y])
+            y = Attention_Layer(strides, att_name, num_filters)([x, y])
             y = BatchNormalization()(y)
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match
@@ -349,7 +353,9 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
                                patience=5,
                                min_lr=0.5e-6)
 
-callbacks = [checkpoint, lr_reducer, lr_scheduler]
+cb_tensorboard = my_TensorBoard(log_dir='./logs', histogram_freq=5, write_graph=True, my_write='attention')
+
+callbacks = [checkpoint, lr_reducer, lr_scheduler, cb_tensorboard]
 
 # Run training, with or without data augmentation.
 print('Not using data augmentation.')

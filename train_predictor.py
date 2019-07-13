@@ -171,11 +171,11 @@ class Attention_Layer(Layer):
         super(Attention_Layer, self).build(input_shape)  # Be sure to call this at the end
 
     def call(self, x):
-        return self.attention(x, strides = self.strides, num_filters=self.num_filters)
+        return self.attention(x[0], x[1], strides = self.strides, num_filters=self.num_filters)
 
     def compute_output_shape(self, input_shape):
-        output_shape =(None, input_shape[1]//self.strides, input_shape[2]//self.strides, self.num_filters)
-        return output_shape
+        # output_shape =(None, input_shape[1]//self.strides, input_shape[2]//self.strides, self.num_filters)
+        return input_shape[1]
     
     def get_att_map(self):
         return self.att_map
@@ -183,7 +183,7 @@ class Attention_Layer(Layer):
     def get_att_feature(self):
         return self.att_feature
 
-    def attention(self, x,
+    def attention(self, x, h_feature,
                     num_filters=16,
                     kernel_size=3,
                     strides=1,
@@ -201,15 +201,17 @@ class Attention_Layer(Layer):
             x (tensor): tensor as attention map
         """
         # get key, query and value
+        if strides == 2:
+            x = MaxPool2D()(x)
         # f = resnet_layer(inputs=x,
         #                 num_filters=num_filters,
         #                 strides=strides)
+        # f = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides,
+        #                 activation=None,
+        #                 batch_normalization=False)
         f = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides,
-                        activation=None,
-                        batch_normalization=False)
-        f = resnet_layer(inputs=f,
                         num_filters=num_filters,
                         kernel_size=1,
                         activation=None,
@@ -218,12 +220,12 @@ class Attention_Layer(Layer):
         # g = resnet_layer(inputs=x,
         #                 num_filters=num_filters,
         #                 strides=strides)
+        # g = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides,
+        #                 activation=None,
+        #                 batch_normalization=False)
         g = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides,
-                        activation=None,
-                        batch_normalization=False)
-        g = resnet_layer(inputs=g,
                         num_filters=num_filters,
                         kernel_size=1,
                         activation=None,
@@ -232,12 +234,12 @@ class Attention_Layer(Layer):
         # h = resnet_layer(inputs=x,
         #                 num_filters=num_filters,
         #                 strides=strides)
-        h = resnet_layer(inputs=x,
-                        num_filters=num_filters,
-                        strides=strides,
-                        activation=None,
-                        batch_normalization=False)
-        h = resnet_layer(inputs=h,
+        # h = resnet_layer(inputs=x,
+        #                 num_filters=num_filters,
+        #                 strides=strides,
+        #                 activation=None,
+        #                 batch_normalization=False)
+        h = resnet_layer(inputs=h_feature,
                         num_filters=num_filters,
                         kernel_size=1,
                         activation=None,
@@ -318,7 +320,10 @@ def resnet_v1(input_shape, depth, num_classes=10):
                              strides=strides)
             y = resnet_layer(inputs=y,
                              num_filters=num_filters,
-                             activation=None)
+                             activation=None,
+                             batch_normalization=False)
+            y = Attention_Layer()([x, y])
+            y = BatchNormalization()(y)
             if stack > 0 and res_block == 0:  # first layer but not first stack
                 # linear projection residual shortcut connection to match
                 # changed dims

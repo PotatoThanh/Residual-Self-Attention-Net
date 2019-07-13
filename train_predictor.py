@@ -155,7 +155,7 @@ def resnet_layer(inputs,
     return x
 
 class Attention_Layer(Layer):
-    gamma = K.variable(0.0) # class variable
+    gamma = K.variable(0.0, name='gamma') # class variable
 
     def __init__(self, strides, num_filters, **kwargs):
         self.strides = strides

@@ -197,7 +197,7 @@ class my_TensorBoard(Callback):
 
                     att_layer = self.model.get_layer('layer_att')
                     att_feature = att_layer.get_att_feature()
-                    att_max = tf.reduce_max(att_feature00, axis=-1, keepdims=True)
+                    att_max = tf.reduce_max(att_feature, axis=-1, keepdims=True)
                     tf.summary.image('att', att_max, max_outputs=MAX_OUT)
 
 

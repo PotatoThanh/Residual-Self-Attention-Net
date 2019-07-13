@@ -188,7 +188,12 @@ class my_TensorBoard(Callback):
                     input1 = self.model.get_layer('img').input
                     tf.summary.image('img', input1, max_outputs=MAX_OUT)
 
-                    att_layer = self.model.get_layer('layer_att22')
+                    att_layer = self.model.get_layer('layer_att00')
+                    att_feature = att_layer.get_att_feature()
+                    att_max = tf.reduce_max(att_feature, axis=-1, keepdims=True)
+                    tf.summary.image('att00', att_max, max_outputs=MAX_OUT)
+
+                    att_layer = self.model.get_layer('layer_att')
                     att_feature = att_layer.get_att_feature()
                     att_max = tf.reduce_max(att_feature, axis=-1, keepdims=True)
                     tf.summary.image('att', att_max, max_outputs=MAX_OUT)

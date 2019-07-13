@@ -209,11 +209,11 @@ class Attention_Layer(Layer):
                         strides=strides,
                         activation=None,
                         batch_normalization=False)
-        # f = resnet_layer(inputs=f,
-        #                 num_filters=num_filters,
-        #                 kernel_size=1,
-        #                 activation=None,
-        #                 batch_normalization=False)  # linear layer [bs, h, w, c]
+        f = resnet_layer(inputs=f,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        activation=None,
+                        batch_normalization=False)  # linear layer [bs, h, w, c]
 
         # g = resnet_layer(inputs=x,
         #                 num_filters=num_filters,
@@ -223,11 +223,11 @@ class Attention_Layer(Layer):
                         strides=strides,
                         activation=None,
                         batch_normalization=False)
-        # g = resnet_layer(inputs=g,
-        #                 num_filters=num_filters,
-        #                 kernel_size=1,
-        #                 activation=None,
-        #                 batch_normalization=False)  # linear layer [bs, h, w, c]
+        g = resnet_layer(inputs=g,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        activation=None,
+                        batch_normalization=False)  # linear layer [bs, h, w, c]
 
         # h = resnet_layer(inputs=x,
         #                 num_filters=num_filters,
@@ -237,11 +237,11 @@ class Attention_Layer(Layer):
                         strides=strides,
                         activation=None,
                         batch_normalization=False)
-        # h = resnet_layer(inputs=h,
-        #                 num_filters=num_filters,
-        #                 kernel_size=1,
-        #                 activation=None,
-        #                 batch_normalization=False)  # linear layer [bs, h, w, c]
+        h = resnet_layer(inputs=h,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        activation=None,
+                        batch_normalization=False)  # linear layer [bs, h, w, c]
 
         # get output shape
         _, height, width, num_filters = K.int_shape(h)
@@ -265,7 +265,7 @@ class Attention_Layer(Layer):
 
         att_feature = resnet_layer(inputs=att_feature,
                                     num_filters=num_filters,
-                                    kernel_size=3,
+                                    kernel_size=1,
                                     activation=None,
                                     batch_normalization=False)  # linear layer [bs, h, w, c']
         

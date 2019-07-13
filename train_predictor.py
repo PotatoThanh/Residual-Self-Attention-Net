@@ -23,7 +23,7 @@ except:
 
 # Training parameters
 batch_size = 32  # orig paper trained all networks with batch_size=128
-epochs = 200
+epochs = 500
 data_augmentation = False
 num_classes = 10
 
